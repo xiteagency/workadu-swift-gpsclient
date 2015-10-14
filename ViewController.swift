@@ -8,9 +8,9 @@
 
 import UIKit
 import CoreLocation
-import SocketIO
+//import SocketIO
 
-class ViewController: UIViewController, CLLocationManagerDelegate, NSStreamDelegate{
+class ViewController: UIViewController, CLLocationManagerDelegate{
    
     // MARK: Properties
     @IBOutlet var serverStatus: UILabel!
@@ -20,11 +20,10 @@ class ViewController: UIViewController, CLLocationManagerDelegate, NSStreamDeleg
     @IBOutlet weak var longitude: UILabel!
     @IBOutlet weak var heading: UILabel!
     @IBOutlet weak var speed: UILabel!
+    @IBOutlet weak var dscr: UILabel!
     
-    let socket = SocketIOClient(socketURL: "192.168.1.99:31338")
     var manager:CLLocationManager!
-    
-
+    let socketClient = Socket()
 
 
     override func viewDidLoad() {
@@ -33,34 +32,39 @@ class ViewController: UIViewController, CLLocationManagerDelegate, NSStreamDeleg
         manager = CLLocationManager()
         manager.delegate = self
 
-        self.socket.onAny {print("got event: \($0.event) with items \($0.items)")}
-        // Socket Events
-        self.socket.on("reconnectAttempt") {data, ack in
-            print("socket connected")
-
-            // Sending messages
-            self.socket.emit("testEcho")
-
-            self.socket.emit("testObject", [
-                "data": true
-                ])
-
-            // Sending multiple items per message
-            self.socket.emit("multTest", [1], 1.4, 1, "true",
-                true, ["test": "foo"], "bar")
-        }
-
-
-
     }
 
+
+// let qualityOfServiceClass = QOS_CLASS_BACKGROUND
+// let backgroundQueue = dispatch_get_global_queue(qualityOfServiceClass, 0)
+// dispatch_async(backgroundQueue, {
+//     println("This is run on the background queue")
+
+//    dispatch_async(dispatch_get_main_queue(), { () -> Void in
+//         println("This is run on the main queue, after the previous code in outer block")
+//     })
+// })
 	// MARK: Actions
     @IBAction func startBtn(sender: AnyObject) {
         serverStatus.text = "Connecting..."
-        self.socket.connect()
-        manager.desiredAccuracy = kCLLocationAccuracyBest
-        manager.requestWhenInUseAuthorization()
-        manager.startUpdatingLocation()
+        //let host = "192.168.1.99"
+        let host = "5.189.190.98"
+        let port = 31338
+      
+        let qualityOfServiceClass = Int(QOS_CLASS_USER_INITIATED.rawValue)
+        let backgroundQueue = dispatch_get_global_queue(qualityOfServiceClass, 0)
+        
+        dispatch_async(backgroundQueue, {
+            print("This is run on the background queue")
+            self.socketClient.open(host, port:port)
+            self.socketClient.send("$$T142,123435,AAA,35,36.792323,27.142585,151006124258,A,9,12,0,161,1.0,17,8078038,16884011,202|1|013B|F215,0000,|||0A37|03DD,00000001,*A0")
+        
+            self.manager.desiredAccuracy = kCLLocationAccuracyBest
+            self.manager.requestWhenInUseAuthorization()
+            self.manager.startUpdatingLocation()
+        
+        })
+
 	}
 
 	func locationManager(manager:CLLocationManager, didUpdateLocations locations:[CLLocation]) {
@@ -72,8 +76,13 @@ class ViewController: UIViewController, CLLocationManagerDelegate, NSStreamDeleg
         latitude.text = "\(myCoordinates.coordinate.latitude)"
         speed.text = "\(myCoordinates.speed)"
         heading.text = "\(myCoordinates.course)"
-        print("pos")
-        socket.emit("onTrack","$$T142,865328024295627,AAA,35,36.792323,27.142585,151006124258,A,9,12,0,161,1.0,17,8078038,16884011,202|1|013B|F215,0000,|||0A37|03DD,00000001,*A0")
+        dscr.text = "\(myCoordinates.description)"
+        let date = NSDate()
+        let formatter = NSDateFormatter()
+        formatter.dateFormat = "YYMMddHHmmss"
+        formatter.timeZone = NSTimeZone(forSecondsFromGMT: 0)
+        formatter.locale = NSLocale(localeIdentifier: "en_US_POSIX")
+        socketClient.send("$$T142,123435,AAA,35,"+latitude.text!+","+longitude.text!+","+formatter.stringFromDate(date)+",A,9,12,"+speed.text!+","+heading.text!+",1.0,17,8078038,16884011,202|1|013B|F215,0000,|||0A37|03DD,00000001,*A0")
     }
 
    
