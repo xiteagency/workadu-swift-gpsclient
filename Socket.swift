@@ -152,39 +152,18 @@ class Socket: NSObject, NSStreamDelegate {
     */
     final func writeToStream(){
         if _messagesQueue.count > 0 && self.outputStream!.hasSpaceAvailable  {
-
-            let qualityOfServiceClass = Int(QOS_CLASS_USER_INITIATED.rawValue)
-            let backgroundQueue = dispatch_get_global_queue(qualityOfServiceClass, 0)
-            
-            dispatch_async(backgroundQueue, {
-                print("This is run on the background queue")
-                let message = self._messagesQueue.removeLast()
-                print("mesage:" + message)
-                let data: NSData = message.dataUsingEncoding(NSUTF8StringEncoding)!
-                 
-                //An error ocurred when writing
-                if self.outputStream!.write(UnsafePointer<UInt8>(data.bytes), maxLength: data.length) == -1 {
-                    self._messagesQueue.append(message)
-                    print ("error sending message")
-                }    
-                dispatch_async(dispatch_get_main_queue(), { () -> Void in
-                    print("This is run on the foreground queue")
+     
+             dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), { () -> Void in
+                 let message = self._messagesQueue.removeLast()
+                 print("mesage:" + message)
+                 let data: NSData = message.dataUsingEncoding(NSUTF8StringEncoding)!
                 
-                    
-                })
-            })
-
-            // dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), { () -> Void in
-            //     let message = self._messagesQueue.removeLast()
-            //     print("mesage:" + message)
-            //     let data: NSData = message.dataUsingEncoding(NSUTF8StringEncoding)!
-                
-            //     //An error ocurred when writing
-            //     if self.outputStream!.write(UnsafePointer<UInt8>(data.bytes), maxLength: data.length) == -1 {
-            //         self._messagesQueue.append(message)
-            //         print ("error sending message")
-            //     }
-            // })
+                 //An error ocurred when writing
+                 if self.outputStream!.write(UnsafePointer<UInt8>(data.bytes), maxLength: data.length) == -1 {
+                     self._messagesQueue.append(message)
+                     print ("error sending message")
+                 }
+             })
 
         }
     }
